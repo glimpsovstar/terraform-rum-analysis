@@ -126,17 +126,27 @@ python terraform_resource_extractor.py -f terraform.tfstate -n -d
 
 ---
 
-### 5️⃣ Save Extracted Data to a CSV File
+### 5️⃣ Exclude HashiCorp-Related Resources (`-H`)
 
 ```bash
-python terraform_resource_extractor.py -f terraform.tfstate -o output.csv
+python terraform_resource_extractor.py -f terraform.tfstate -H
 ```
 
-🔹 Saves the extracted resource list to a **CSV file** for further analysis.
+🔹 **Excludes resources related to HashiCorp services** (e.g., `tfe_`, `vault_`).
 
 ---
 
-### 6️⃣ Group Resources by Module & Type (`-G`)
+### 6️⃣ Only Show HashiCorp-Related Resources (`-Ho`)
+
+```bash
+python terraform_resource_extractor.py -f terraform.tfstate -Ho
+```
+
+🔹 **Filters to show only HashiCorp-managed resources** (e.g., `tfe_`, `vault_`).
+
+---
+
+### 7️⃣ Group Resources by Module & Type (`-G`)
 
 ```bash
 python terraform_resource_extractor.py -f terraform.tfstate -G
@@ -162,6 +172,18 @@ module.network aws_vpc              vpc_main         aws                   1
 ```
 
 ---
+
+### 8️⃣ Save Extracted Data to a CSV File
+
+```bash
+python terraform_resource_extractor.py -f terraform.tfstate -o output.csv
+```
+
+🔹 Saves the extracted resource list to a **CSV file** for further analysis.
+
+---
+
+
 
 ## 📝 Example: Comparing with jq
 
