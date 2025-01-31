@@ -20,7 +20,14 @@ This script extracts and analyzes managed resources from a Terraform state file.
 
    4️⃣ **Enable debug mode to compare with jq output**:
       python terraform_resource_extractor.py -f terraform.tfstate -n -d
+
+   5️⃣ **Exclude HashiCorp-related resources (tfe_, vault_)**:
+      python terraform_resource_extractor.py -f terraform.tfstate -H
+
+   6️⃣ **Only show HashiCorp-related resources (tfe_, vault_)**:
+      python terraform_resource_extractor.py -f terraform.tfstate -Ho
 """
+
 import json
 import argparse
 import pandas as pd
