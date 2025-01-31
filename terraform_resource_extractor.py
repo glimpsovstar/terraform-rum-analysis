@@ -26,6 +26,12 @@ This script extracts and analyzes managed resources from a Terraform state file.
 
    6️⃣ **Only show HashiCorp-related resources (tfe_, vault_)**:
       python terraform_resource_extractor.py -f terraform.tfstate -Ho
+
+   7️⃣ **Group resources by module, type, name, and provider**:
+      python terraform_resource_extractor.py -f terraform.tfstate -G
+
+   8️⃣ **Output results to a CSV file**:
+      python terraform_resource_extractor.py -f terraform.tfstate -o output.csv
 """
 
 import json
@@ -35,12 +41,6 @@ import pandas as pd
 def load_state_file(state_file):
     """
     Loads and parses the Terraform state file.
-    
-    Args:
-        state_file (str): Path to the Terraform state JSON file.
-
-    Returns:
-        dict: Parsed JSON data from the Terraform state file.
     """
     try:
         with open(state_file, "r", encoding="utf-8") as file:
@@ -52,22 +52,19 @@ def load_state_file(state_file):
         print(f"❌ Error: File '{state_file}' is not a valid JSON file.")
         exit(1)
 
+def save_to_csv(resource_df, output_file):
+    """
+    Saves extracted resources to a CSV file.
+    """
+    output_file = output_file if output_file.endswith(".csv") else output_file + ".csv"
+    resource_df.to_csv(output_file, index=False)
+    print(f"✅ Results saved to {output_file}")
+
 def extract_resources(state_data, exclude_tfe_vault=False, only_tfe_vault=False, debug=False):
     """
     Extracts managed resources from the Terraform state file.
-    
-    Args:
-        state_data (dict): Parsed Terraform state JSON.
-        exclude_tfe_vault (bool): Whether to exclude HashiCorp-related resources (tfe_, vault_).
-        only_tfe_vault (bool): Whether to include only HashiCorp-related resources.
-        debug (bool): Whether to print debug information.
-    
-    Returns:
-        pd.DataFrame: A DataFrame containing extracted resource information.
-        int: The total count of HashiCorp-related resources.
     """
     resources = []
-    total_instances_debug = 0
     hashi_instances = 0
 
     for resource in state_data.get("resources", []):
@@ -83,10 +80,7 @@ def extract_resources(state_data, exclude_tfe_vault=False, only_tfe_vault=False,
             if is_hashi_resource:
                 hashi_instances += len(resource.get("instances", []))
             
-            instances = resource.get("instances", [])
-            total_instances_debug += len(instances)
-
-            for instance in instances:
+            for instance in resource.get("instances", []):
                 resources.append({
                     "Module": resource.get("module", "root"),
                     "Resource Type": resource["type"],
@@ -94,51 +88,40 @@ def extract_resources(state_data, exclude_tfe_vault=False, only_tfe_vault=False,
                     "Provider": resource.get("provider", "unknown"),
                     "Instance Count": 1
                 })
-
-    if debug:
-        print(f"🔍 DEBUG: Total resource instances counted (flattened): {total_instances_debug}")
-
+    
     return pd.DataFrame(resources), hashi_instances
 
-def count_instances(resource_df):
-    """
-    Returns the total count of resource instances.
-    
-    Args:
-        resource_df (pd.DataFrame): DataFrame of extracted resources.
-
-    Returns:
-        int: Total number of resource instances.
-    """
-    return len(resource_df)
-
-def aggregate_resources(resource_df, hashi_instances, exclude_tfe_vault):
+def aggregate_resources(resource_df, hashi_instances, is_hashi_only, is_excluding_hashi):
     """
     Outputs aggregate statistics about the extracted resources.
-    
-    Args:
-        resource_df (pd.DataFrame): DataFrame of extracted resources.
-        hashi_instances (int): The total count of HashiCorp-related resources.
-        exclude_tfe_vault (bool): Whether to exclude HashiCorp-related resources.
     """
-    total_instances = count_instances(resource_df)
+    total_instances = len(resource_df)
     total_resources = resource_df["Resource Name"].nunique()
     unique_types = resource_df["Resource Type"].nunique()
 
     print("\n📊 Aggregate Information:")
-    print(f"🔹 Total number of resource instances: {total_instances}")
+    if is_hashi_only:
+        print(f"🔹 Total HashiCorp related resource instances: {hashi_instances}")
+    else:
+        print(f"🔹 Total number of resource instances: {total_instances}")
+        if not is_excluding_hashi:
+            print(f"🔹 Total HashiCorp related resource instances: {hashi_instances}")
     print(f"🔹 Total number of unique resources: {total_resources}")
     print(f"🔹 Total number of unique resource types: {unique_types}")
-    if not exclude_tfe_vault:
-        print(f"🔹 Total number of HashiCorp related resource instances: {hashi_instances}")
     
     print("\n🔹 Unique Resource Types:")
-    filtered_types = resource_df["Resource Type"].loc[~resource_df["Resource Type"].str.startswith(("tfe_", "vault_"))] if exclude_tfe_vault else resource_df["Resource Type"]
-    print(filtered_types.value_counts().to_string())
+    print(resource_df["Resource Type"].value_counts().to_string())
     
     print("\n🔹 Unique Resource Names:")
-    filtered_names = resource_df["Resource Name"].loc[~resource_df["Resource Type"].str.startswith(("tfe_", "vault_"))] if exclude_tfe_vault else resource_df["Resource Name"]
-    print(filtered_names.value_counts().to_string())
+    print(resource_df["Resource Name"].value_counts().to_string())
+
+def group_resources(resource_df):
+    """
+    Groups resources by module, type, name, and provider and prints grouped results.
+    """
+    grouped_df = resource_df.groupby(["Module", "Resource Type", "Resource Name", "Provider"]).sum()
+    print("\n📊 Grouped Resource Information:")
+    print(grouped_df.to_string())
 
 def compare_with_jq(state_data, debug=False):
     """
@@ -164,6 +147,8 @@ def main():
     parser.add_argument("-A", "--aggregate", action="store_true", help="Output aggregate information about resources.")
     parser.add_argument("-H", "--hide-tfe-vault", action="store_true", help="Exclude 'tfe_' and 'vault_' resources from results.")
     parser.add_argument("-Ho", "--only-tfe-vault", action="store_true", help="Only show 'tfe_' and 'vault_' resources.")
+    parser.add_argument("-G", "--group", action="store_true", help="Group resources by module, type, name, and provider.")
+    parser.add_argument("-o", "--output", help="Output results to a specified .csv file.")
     parser.add_argument("-d", "--debug", action="store_true", help="Enable debug mode to show extra information.")
     
     args = parser.parse_args()
@@ -176,14 +161,24 @@ def main():
         print("⚠ No managed resources found in the Terraform state file.")
         exit(0)
 
+    # Store results for optional CSV output
+    final_df = resource_df.copy()
+
     if args.number:
-        print(f"Total number of resource instances: {count_instances(resource_df)}")
+        print(f"Total number of resource instances: {len(resource_df)}")
         exit(0)
 
     if args.aggregate:
-        aggregate_resources(resource_df, hashi_instances, args.hide_tfe_vault)
+        aggregate_resources(resource_df, hashi_instances, args.only_tfe_vault, args.hide_tfe_vault)
         exit(0)
-
+    
+    if args.group:
+        grouped_df = group_resources(resource_df)
+        final_df = grouped_df.reset_index()  # Ensure it's properly formatted for CSV
+    
+    if args.output:
+        save_to_csv(final_df, args.output)
+    
     print("\n📊 Extracted Managed Resources:")
     print(resource_df.to_string(index=False))
 
