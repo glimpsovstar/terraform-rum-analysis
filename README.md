@@ -1,5 +1,36 @@
 # terraform-rum-analysis
-This repository is intended to be used as a template for creating new Terraform modules or just for writing general Terraform code
+This repository contains tools that can be used to analyse Terraform's resources under management in a single workspace.
+There are 3 main scripts:
+
+`terraform_resource_extractor.py`:
+
+Purpose: Analyzes a Terraform state (.tfstate) file to extract and aggregate managed resources.
+Features:
+Extracts managed resources from the state file.
+Counts total resource instances, including those created with count or for_each.
+Lists unique resource types and their occurrences.
+Identifies providers used in the configuration.
+Usage: Run the script with the path to the Terraform state file as an argument to receive a structured summary of the managed resources.
+
+`extract_resource_type_stats.py`:
+
+Purpose: Generates statistics on resource types within a Terraform state file.
+Features:
+Parses the state file to identify all resource types.
+Counts the number of instances for each resource type.
+Provides a summary of resource distribution.
+Usage: Execute the script with the Terraform state file as input to obtain a breakdown of resource types and their instance counts.
+
+`temporary_intended_resources.py`:
+
+Purpose: Identifies resources in a Terraform state file that are intended to be temporary, based on specific naming conventions.
+Features:
+Searches for resource names containing keywords like "demo", "test", "temp", "tmp", and "example".
+Generates a list of these resources for review.
+Assists in managing and cleaning up ephemeral resources.
+Usage: Run the script with the state file as an argument to receive a list of resources that match the temporary naming patterns.
+These scripts are designed to assist in analyzing and managing resources within Terraform state files, providing insights into resource utilization and aiding in the identification of temporary or test resources.
+
 
 ## Terraform Resource Extractor (`terraform_resource_extractor.py`)
 The `terraform_resource_extractor.py` script is a **Terraform state analysis tool** that extracts, counts, and aggregates **managed resources** from a Terraform state (`.tfstate`) file. It helps Terraform users inspect **resource instances, unique resource types, and provider details** in a structured format.
